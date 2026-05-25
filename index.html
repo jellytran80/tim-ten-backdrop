@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tìm Tên Trên Backdrop - Local OCR</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #ff5722;
+            --primary-hover: #e64a19;
+            --background: #f5f7fb;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --text-muted: #666666;
+            --border: #e0e0e0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--background);
+            color: var(--text-main);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        h1 {
+            font-size: 20px;
+            text-align: center;
+            margin-bottom: 8px;
+            color: var(--primary-color);
+        }
+
+        .subtitle {
+            font-size: 13px;
+            text-align: center;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+
+        .guide-box {
+            background-color: #fff3e0;
+            border-left: 4px solid #ffb74d;
+            padding: 10px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #b78103;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text-main);
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 15px;
+            outline: none;
+            transition: border 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--primary-color);
+        }
+
+        /* Custom File Input UX */
+        .file-upload-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100px;
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            background: #fafafa;
+            transition: background 0.2s;
+        }
+
+        .file-upload-wrapper:hover {
+            background: #f0f0f0;
+        }
+
+        .file-upload-wrapper input[type="file"] {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .file-upload-text {
+            font-size: 13px;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 0 10px;
+        }
+
+        .btn-search {
+            width: 100%;
+            padding: 14px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 10px;
+        }
+
+        .btn-search:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-search:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* Progress Bar UX */
+        .progress-container {
+            display: none;
+            margin-top: 20px;
+            background: #eee;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+            height: 20px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background-color: #4caf50;
+            transition: width 0.2s ease;
+        }
+
+        .progress-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            font-size: 11px;
+            font-weight: bold;
+            line-height: 20px;
+            color: #333;
+        }
+
+        /* Result Area */
+        .result-container {
+            margin-top: 25px;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .result-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #4caf50;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .canvas-wrapper {
+            width: 100%;
+            max-height: 400px;
+            overflow: auto;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #222;
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Tìm Tên Trên Backdrop</h1>
+    <div class="subtitle">Ứng dụng quét và định vị vị trí tên của bạn hoàn toàn trực tiếp trên điện thoại, không tốn dữ liệu mạng.</div>
+
+    <div class="guide-box">
+        <strong>💡 Mẹo quét chuẩn:</strong> Hãy đứng gần backdrop, chụp rõ riêng khu vực chứa nhóm ký tự đầu của tên bạn (Ví dụ: Khu vực vần H, N, T...). Không nên chụp toàn bộ bạt từ quá xa khiến chữ bị nhỏ/mờ.
+    </div>
+
+    <div class="form-group">
+        <label for="runnerName">Nhập tên của bạn cần tìm:</label>
+        <input type="text" id="runnerName" placeholder="Ví dụ: NGUYEN VAN A" autocomplete="off">
+    </div>
+
+    <div class="form-group">
+        <label>Chụp hoặc tải ảnh khu vực danh sách:</label>
+        <div class="file-upload-wrapper" id="uploadWrapper">
+            <span class="file-upload-text" id="uploadStatusText">📸 Bấm để Chụp Ảnh hoặc Chọn Hình</span>
+            <input type="file" id="imageInput" accept="image/*">
+        </div>
+    </div>
+
+    <button class="btn-search" id="searchBtn" disabled>Bắt đầu tìm kiếm tên</button>
+
+    <div class="progress-container" id="progressContainer">
+        <div class="progress-bar" id="progressBar"></div>
+        <div class="progress-text" id="progressText">Đang chuẩn bị...</div>
+    </div>
+
+    <div class="result-container" id="resultContainer">
+        <div class="result-title" id="resultTitle">✓ Đã tìm thấy vị trí của bạn!</div>
+        <div class="canvas-wrapper">
+            <canvas id="resultCanvas"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    const imageInput = document.getElementById('imageInput');
+    const runnerNameInput = document.getElementById('runnerName');
+    const searchBtn = document.getElementById('searchBtn');
+    const uploadWrapper = document.getElementById('uploadWrapper');
+    const uploadStatusText = document.getElementById('uploadStatusText');
+    
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    
+    const resultContainer = document.getElementById('resultContainer');
+    const resultCanvas = document.getElementById('resultCanvas');
+    const resultTitle = document.getElementById('resultTitle');
+    
+    let selectedFile = null;
+    let worker = null;
+
+    // Trạng thái Form validation đơn giản
+    function validateForm() {
+        if (selectedFile && runnerNameInput.value.trim().length > 0) {
+            searchBtn.disabled = false;
+        } else {
+            searchBtn.disabled = true;
+        }
+    }
+
+    runnerNameInput.addEventListener('input', validateForm);
+
+    imageInput.addEventListener('change', function(e) {
+        if (e.target.files && e.target.files[0]) {
+            selectedFile = e.target.files[0];
+            uploadStatusText.innerText = `📂 Đã chọn: ${selectedFile.name}`;
+            uploadWrapper.style.borderColor = '#4caf50';
+            validateForm();
+        }
+    });
+
+    // Hàm chuyển đổi chuỗi tiếng Việt sang không dấu để tăng tỉ lệ chính xác khi match
+    function removeVietnameseTones(str) {
+        str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g,"a");
+        str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g,"e");
+        str = str.replace(/ì|í|ị|ỉ|ĩ/g,"i");
+        str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g,"o");
+        str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g,"u");
+        str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g,"y");
+        str = str.replace(/đ/g,"d");
+        str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
+        str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|ễ/g, "E");
+        str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "I");
+        str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O");
+        str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
+        str = str.replace(/Ỳ|Ý|ỵ|Ỷ|Ỹ/g, "Y");
+        str = str.replace(/Đ/g, "D");
+        // Loại bỏ ký tự đặc biệt thừa, giữ lại chữ và số
+        return str.trim().toLowerCase().replace(/[^a-z0-9 ]/g, "");
+    }
+
+    // Xử lý sự kiện Tìm kiếm chính
+    searchBtn.addEventListener('click', async () => {
+        const searchName = runnerNameInput.value.trim();
+        if (!selectedFile || !searchName) return;
+
+        // Reset UI kết quả cũ
+        resultContainer.style.display = "none";
+        progressContainer.style.display = "block";
+        searchBtn.disabled = true;
+
+        try {
+            // --- GIẢI QUYẾT THÁCH THỨC 1: Nén dung lượng ảnh trực tiếp bằng Canvas trước khi chạy OCR ---
+            updateProgress(0.05, 'Đang tối ưu dung lượng ảnh đầu vào...');
+            const optimizedImageBlob = await resizeAndOptimizeImage(selectedFile, 1600); // Giới hạn chiều rộng tối đa 1600px
+
+            // --- GIẢI QUYẾT THÁCH THỨC 2: Khởi tạo Tesseract Worker & Cập nhật tiến trình nạp file ngôn ngữ chi tiết ---
+            if (!worker) {
+                updateProgress(0.1, 'Đang khởi tạo lõi nhận diện trí tuệ nhân tạo local...');
+                worker = await Tesseract.createWorker('vie', 1, {
+                    logger: m => {
+                        // Theo dõi log từ Tesseract để cập nhật % thực tế cho người dùng
+                        if (m.status === 'loading tesseract core') {
+                            updateProgress(0.15, 'Đang tải bộ nhân cốt lõi (chỉ chạy lần đầu)...');
+                        } else if (m.status === 'loading language traineddata') {
+                            updateProgress(0.2, `Đang nạp bộ từ điển Tiếng Việt: ${Math.round(m.progress * 100)}%`);
+                        } else if (m.status === 'initializing api') {
+                            updateProgress(0.3, 'Đang thiết lập cấu hình môi trường...');
+                        } else if (m.status === 'recognizing text') {
+                            // Tiến trình OCR quét chữ thực tế từ 35% đến 95%
+                            const ocrProgress = 0.35 + (m.progress * 0.6);
+                            updateProgress(ocrProgress, `Đang phân tích, quét chữ trên ảnh: ${Math.round(m.progress * 100)}%`);
+                        }
+                    }
+                });
+            } else {
+                updateProgress(0.35, 'Bắt đầu quét hình ảnh...');
+            }
+
+            // Thực hiện nhận diện OCR
+            const { data: { words } } = await worker.recognize(optimizedImageBlob);
+            
+            updateProgress(0.98, 'Đang đối chiếu dữ liệu tên và vẽ highlight...');
+
+            // Nạp ảnh đã nén vào canvas và thực hiện Highlight vị trí chữ
+            const img = new Image();
+            img.src = URL.createObjectURL(optimizedImageBlob);
+            img.onload = () => {
+                const ctx = resultCanvas.getContext('2d');
+                resultCanvas.width = img.width;
+                resultCanvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+
+                let isFound = false;
+                const normalizedSearch = removeVietnameseTones(searchName);
+
+                // Duyệt qua từng từ/cụm từ mà AI bóc tách được
+                words.forEach(word => {
+                    const normalizedWord = removeVietnameseTones(word.text);
+                    
+                    // Kiểm tra xem từ khóa tìm kiếm có nằm trong text nhận diện được không
+                    if (normalizedWord && normalizedSearch && (normalizedWord.includes(normalizedSearch) || normalizedSearch.includes(normalizedWord))) {
+                        isFound = true;
+                        
+                        // Lấy tọa độ đóng khung của từ đó (Bounding Box)
+                        const { x0, y0, x1, y1 } = word.bbox;
+                        const padding = 6; // Tạo thêm khoảng trống rìa cho dễ nhìn
+
+                        // Tiến hành vẽ lớp highlight màu nổi bật lên Canvas
+                        ctx.fillStyle = 'rgba(255, 235, 59, 0.45)'; // Lớp nền màu vàng trong suốt
+                        ctx.strokeStyle = '#ff1744'; // Đường viền đỏ tươi
+                        ctx.lineWidth = 4;
+                        ctx.lineJoin = 'round';
+
+                        ctx.fillRect(x0 - padding, y0 - padding, (x1 - x0) + (padding * 2), (y1 - y0) + (padding * 2));
+                        ctx.strokeRect(x0 - padding, y0 - padding, (x1 - x0) + (padding * 2), (y1 - y0) + (padding * 2));
+                    }
+                });
+
+                // Kết thúc quá trình xử lý
+                progressContainer.style.display = "none";
+                resultContainer.style.display = "flex";
+                searchBtn.disabled = false;
+
+                if (isFound) {
+                    resultTitle.innerText = "✓ Đã tìm thấy vị trí tên của bạn!";
+                    resultTitle.style.color = "#4caf50";
+                    // Tự động cuộn mượt xuống vùng hiển thị kết quả
+                    resultContainer.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    resultTitle.innerText = "✕ Không tìm thấy tên khớp trên hình. Hãy thử chụp gần lại hơn nhé!";
+                    resultTitle.style.color = "#f44336";
+                }
+            };
+
+        } catch (error) {
+            console.error(error);
+            alert('Có lỗi xảy ra trong quá trình xử lý ảnh local: ' + error.message);
+            progressContainer.style.display = "none";
+            searchBtn.disabled = false;
+        }
+    });
+
+    // Hàm cập nhật trạng thái Progress bar trực quan
+    function updateProgress(fraction, text) {
+        const percentage = Math.round(fraction * 100);
+        progressBar.style.width = percentage + '%';
+        progressText.innerText = `${text} (${percentage}%)`;
+    }
+
+    // Hàm tối ưu & nén ảnh bằng HTML5 Canvas tránh tràn RAM/đứng máy điện thoại
+    function resizeAndOptimizeImage(file, maxDimension) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = function(event) {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = function() {
+                    let width = img.width;
+                    let height = img.height;
+
+                    // Tính toán tỷ lệ co giãn để giữ nguyên aspect ratio
+                    if (width > maxDimension || height > maxDimension) {
+                        if (width > height) {
+                            height = Math.round((height * maxDimension) / width);
+                            width = maxDimension;
+                        } else {
+                            width = Math.round((width * maxDimension) / height);
+                            height = maxDimension;
+                        }
+                    }
+
+                    // Tạo canvas ẩn để thực hiện render nén ảnh
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // Xuất ngược ra định dạng Blob JPEG với mức nén chất lượng 85% vừa đủ nét để OCR đọc tốt
+                    canvas.toBlob(function(blob) {
+                        resolve(blob);
+                    }, 'image/jpeg', 0.85);
+                };
+                img.onerror = err => reject(err);
+            };
+            reader.onerror = err => reject(err);
+        });
+    }
+</script>
+
+</body>
+</html>
