@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tìm Tên Trên Backdrop - Local OCR</title>
-    <!-- <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script> -->
-    <script src="./js/tesseract.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         :root {
             --primary-color: #ff5722;
@@ -331,9 +330,6 @@
             if (!worker) {
                 updateProgress(0.1, 'Đang khởi tạo lõi nhận diện trí tuệ nhân tạo local...');
                 worker = await Tesseract.createWorker('vie', 1, {
-                    corePath: './js/tesseract-core.wasm.js',
-                    workerPath: './js/tesseract.min.js',     
-                    langPath: './lang-data',                     
                     logger: m => {
                         // Theo dõi log từ Tesseract để cập nhật % thực tế cho người dùng
                         if (m.status === 'loading tesseract core') {
