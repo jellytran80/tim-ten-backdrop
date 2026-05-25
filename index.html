@@ -94,11 +94,36 @@
             border-color: var(--primary-color);
         }
 
+        /* Checkbox UI */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary-color);
+            cursor: pointer;
+        }
+
+        .checkbox-label {
+            font-size: 13px;
+            color: var(--text-main);
+            font-weight: 500;
+            cursor: pointer;
+        }
+
         /* Custom File Input UX */
         .file-upload-wrapper {
             position: relative;
             width: 100%;
-            height: 100px;
+            height: 90px;
             border: 2px dashed var(--border);
             border-radius: 8px;
             display: flex;
@@ -140,7 +165,7 @@
             font-weight: bold;
             cursor: pointer;
             transition: background 0.2s;
-            margin-top: 10px;
+            margin-top: 5px;
         }
 
         .btn-search:hover {
@@ -152,7 +177,7 @@
             cursor: not-allowed;
         }
 
-        /* Progress Bar UX */
+        /* Progress Bar */
         .progress-container {
             display: none;
             margin-top: 20px;
@@ -193,9 +218,6 @@
             font-weight: bold;
             margin-bottom: 10px;
             color: #4caf50;
-            display: flex;
-            align-items: center;
-            gap: 5px;
         }
 
         .canvas-wrapper {
@@ -219,15 +241,20 @@
 
 <div class="container">
     <h1>Tìm Tên Trên Backdrop</h1>
-    <div class="subtitle">Ứng dụng quét và định vị vị trí tên của bạn hoàn toàn trực tiếp trên điện thoại, không tốn dữ liệu mạng.</div>
+    <div class="subtitle">Quét và định vị vị trí tên trực tiếp trên điện thoại, bằng cách chụp backdrop.</div>
 
     <div class="guide-box">
-        <strong>💡 Mẹo quét chuẩn:</strong> Hãy đứng gần backdrop, chụp rõ riêng khu vực chứa nhóm ký tự đầu của tên bạn (Ví dụ: Khu vực vần H, N, T...). Không nên chụp toàn bộ bạt từ quá xa khiến chữ bị nhỏ/mờ.
+        <strong>💡 Mẹo quét chuẩn:</strong> Nên đứng gần backdrop, chụp rõ riêng khu vực chứa nhóm ký tự đầu của tên bạn (Ví dụ: Khu vực vần H, N, T...). Tránh chụp quá xa làm chữ bị mờ nhỏ.
     </div>
 
     <div class="form-group">
-        <label for="runnerName">Nhập tên của bạn cần tìm:</label>
+        <label for="runnerName">Nhập tên cần tìm:</label>
         <input type="text" id="runnerName" placeholder="Ví dụ: NGUYEN VAN A" autocomplete="off">
+        
+        <label class="checkbox-group">
+            <input type="checkbox" id="exactMatch" checked>
+            <span class="checkbox-label">Tìm kiếm chính xác cả cụm từ liền mạch</span>
+        </label>
     </div>
 
     <div class="form-group">
@@ -238,7 +265,7 @@
         </div>
     </div>
 
-    <button class="btn-search" id="searchBtn" disabled>Bắt đầu tìm kiếm tên</button>
+    <button class="btn-search" id="searchBtn" disabled>Bắt đầu tìm kiếm</button>
 
     <div class="progress-container" id="progressContainer">
         <div class="progress-bar" id="progressBar"></div>
@@ -256,14 +283,13 @@
 <script>
     const imageInput = document.getElementById('imageInput');
     const runnerNameInput = document.getElementById('runnerName');
+    const exactMatchCheckbox = document.getElementById('exactMatch');
     const searchBtn = document.getElementById('searchBtn');
     const uploadWrapper = document.getElementById('uploadWrapper');
     const uploadStatusText = document.getElementById('uploadStatusText');
-    
     const progressContainer = document.getElementById('progressContainer');
     const progressBar = document.getElementById('progressBar');
     const progressText = document.getElementById('progressText');
-    
     const resultContainer = document.getElementById('resultContainer');
     const resultCanvas = document.getElementById('resultCanvas');
     const resultTitle = document.getElementById('resultTitle');
@@ -271,7 +297,6 @@
     let selectedFile = null;
     let worker = null;
 
-    // Trạng thái Form validation đơn giản
     function validateForm() {
         if (selectedFile && runnerNameInput.value.trim().length > 0) {
             searchBtn.disabled = false;
@@ -281,7 +306,6 @@
     }
 
     runnerNameInput.addEventListener('input', validateForm);
-
     imageInput.addEventListener('change', function(e) {
         if (e.target.files && e.target.files[0]) {
             selectedFile = e.target.files[0];
@@ -291,7 +315,6 @@
         }
     });
 
-    // Hàm chuyển đổi chuỗi tiếng Việt sang không dấu để tăng tỉ lệ chính xác khi match
     function removeVietnameseTones(str) {
         str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g,"a");
         str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g,"e");
@@ -307,41 +330,34 @@
         str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
         str = str.replace(/Ỳ|Ý|ỵ|Ỷ|Ỹ/g, "Y");
         str = str.replace(/Đ/g, "D");
-        // Loại bỏ ký tự đặc biệt thừa, giữ lại chữ và số
         return str.trim().toLowerCase().replace(/[^a-z0-9 ]/g, "");
     }
 
-    // Xử lý sự kiện Tìm kiếm chính
     searchBtn.addEventListener('click', async () => {
         const searchName = runnerNameInput.value.trim();
+        const isExactMatch = exactMatchCheckbox.checked; // Lấy trạng thái checkbox
         if (!selectedFile || !searchName) return;
 
-        // Reset UI kết quả cũ
         resultContainer.style.display = "none";
         progressContainer.style.display = "block";
         searchBtn.disabled = true;
 
         try {
-            // --- GIẢI QUYẾT THÁCH THỨC 1: Nén dung lượng ảnh trực tiếp bằng Canvas trước khi chạy OCR ---
             updateProgress(0.05, 'Đang tối ưu dung lượng ảnh đầu vào...');
-            const optimizedImageBlob = await resizeAndOptimizeImage(selectedFile, 1600); // Giới hạn chiều rộng tối đa 1600px
+            const optimizedImageBlob = await resizeAndOptimizeImage(selectedFile, 1600);
 
-            // --- GIẢI QUYẾT THÁCH THỨC 2: Khởi tạo Tesseract Worker & Cập nhật tiến trình nạp file ngôn ngữ chi tiết ---
             if (!worker) {
-                updateProgress(0.1, 'Đang khởi tạo lõi nhận diện trí tuệ nhân tạo local...');
+                updateProgress(0.1, 'Đang khởi tạo lõi nhận diện local...');
+                // CẤU HÌNH ĐƯỜNG DẪN FOLDER JS VÀ LANG-DATA LOCAL
                 worker = await Tesseract.createWorker('vie', 1, {
                     logger: m => {
-                        // Theo dõi log từ Tesseract để cập nhật % thực tế cho người dùng
                         if (m.status === 'loading tesseract core') {
-                            updateProgress(0.15, 'Đang tải bộ nhân cốt lõi (chỉ chạy lần đầu)...');
+                            updateProgress(0.15, 'Đang tải bộ nhân cốt lõi...');
                         } else if (m.status === 'loading language traineddata') {
-                            updateProgress(0.2, `Đang nạp bộ từ điển Tiếng Việt: ${Math.round(m.progress * 100)}%`);
-                        } else if (m.status === 'initializing api') {
-                            updateProgress(0.3, 'Đang thiết lập cấu hình môi trường...');
+                            updateProgress(0.2, `Đang nạp từ điển Tiếng Việt: ${Math.round(m.progress * 100)}%`);
                         } else if (m.status === 'recognizing text') {
-                            // Tiến trình OCR quét chữ thực tế từ 35% đến 95%
                             const ocrProgress = 0.35 + (m.progress * 0.6);
-                            updateProgress(ocrProgress, `Đang phân tích, quét chữ trên ảnh: ${Math.round(m.progress * 100)}%`);
+                            updateProgress(ocrProgress, `Đang quét phân tích chữ: ${Math.round(m.progress * 100)}%`);
                         }
                     }
                 });
@@ -349,12 +365,11 @@
                 updateProgress(0.35, 'Bắt đầu quét hình ảnh...');
             }
 
-            // Thực hiện nhận diện OCR
-            const { data: { words } } = await worker.recognize(optimizedImageBlob);
+            // Thực hiện nhận diện hình ảnh
+            const { data: { lines, words } } = await worker.recognize(optimizedImageBlob);
             
-            updateProgress(0.98, 'Đang đối chiếu dữ liệu tên và vẽ highlight...');
+            updateProgress(0.98, 'Đang đối chiếu và vẽ vùng tìm kiếm...');
 
-            // Nạp ảnh đã nén vào canvas và thực hiện Highlight vị trí chữ
             const img = new Image();
             img.src = URL.createObjectURL(optimizedImageBlob);
             img.onload = () => {
@@ -366,61 +381,112 @@
                 let isFound = false;
                 const normalizedSearch = removeVietnameseTones(searchName);
 
-                // Duyệt qua từng từ/cụm từ mà AI bóc tách được
-                words.forEach(word => {
-                    const normalizedWord = removeVietnameseTones(word.text);
-                    
-                    // Kiểm tra xem từ khóa tìm kiếm có nằm trong text nhận diện được không
-                    if (normalizedWord && normalizedSearch && (normalizedWord.includes(normalizedSearch) || normalizedSearch.includes(normalizedWord))) {
-                        isFound = true;
+                // CẤU HÌNH HIGHLIGHT STYLE
+                ctx.fillStyle = 'rgba(255, 235, 59, 0.45)'; 
+                ctx.strokeStyle = '#ff1744'; 
+                ctx.lineWidth = 4;
+                ctx.lineJoin = 'round';
+                const padding = 6;
+
+                // --- PHÂN TÁCH BIẾN LOGIC TÌM KIẾM THEO CHECKBOX ---
+                if (isExactMatch) {
+                    // CÁCH 1: TÌM CHÍNH XÁC CẢ CỤM LIỀN MẠCH (SỬ DỤNG CỬA SỔ TRƯỢT TRÊN WORDS CỦA LINE)
+                    const searchWords = normalizedSearch.split(" ").filter(w => w.length > 0);
+                    const searchLength = searchWords.length;
+
+                    lines.forEach(line => {
+                        const lineWords = line.words;
                         
-                        // Lấy tọa độ đóng khung của từ đó (Bounding Box)
-                        const { x0, y0, x1, y1 } = word.bbox;
-                        const padding = 6; // Tạo thêm khoảng trống rìa cho dễ nhìn
+                        // Chạy vòng lặp quét các từ liên tiếp cạnh nhau trên dòng
+                        for (let i = 0; i <= lineWords.length - searchLength; i++) {
+                            let matchCount = 0;
+                            
+                            // Kiểm tra xem cụm từ liên tiếp tại vị trí 'i' có khớp với mảng tìm kiếm không
+                            for (let j = 0; j < searchLength; j++) {
+                                const currentWordText = removeVietnameseTones(lineWords[i + j].text);
+                                const targetWordText = searchWords[j];
+                                
+                                // So khớp chính xác từ (hoặc chứa nhau để phòng sai sót OCR nhỏ)
+                                if (currentWordText && (currentWordText === targetWordText || currentWordText.includes(targetWordText))) {
+                                    matchCount++;
+                                } else {
+                                    break; // Sai một từ trong cụm là bỏ qua đoạn này ngay
+                                }
+                            }
 
-                        // Tiến hành vẽ lớp highlight màu nổi bật lên Canvas
-                        ctx.fillStyle = 'rgba(255, 235, 59, 0.45)'; // Lớp nền màu vàng trong suốt
-                        ctx.strokeStyle = '#ff1744'; // Đường viền đỏ tươi
-                        ctx.lineWidth = 4;
-                        ctx.lineJoin = 'round';
+                            // Nếu toàn bộ các từ trong cụm đứng cạnh nhau đều khớp
+                            if (matchCount === searchLength) {
+                                isFound = true;
+                                
+                                // Từ đầu tiên và từ cuối cùng của cụm khớp liên tiếp
+                                const firstWord = lineWords[i];
+                                const lastWord = lineWords[i + searchLength - 1];
+                                
+                                // Xác định tọa độ chuẩn xác nhất từ 2 từ biên này
+                                const x0 = firstWord.bbox.x0;
+                                const y0 = Math.min(firstWord.bbox.y0, lastWord.bbox.y0);
+                                const x1 = lastWord.bbox.x1;
+                                const y1 = Math.max(firstWord.bbox.y1, lastWord.bbox.y1);
 
-                        ctx.fillRect(x0 - padding, y0 - padding, (x1 - x0) + (padding * 2), (y1 - y0) + (padding * 2));
-                        ctx.strokeRect(x0 - padding, y0 - padding, (x1 - x0) + (padding * 2), (y1 - y0) + (padding * 2));
-                    }
-                });
+                                // Vẽ khung highlight ôm khít cụm từ tìm được
+                                ctx.fillRect(x0 - padding, y0 - padding, (x1 - x0) + (padding * 2), (y1 - y0) + (padding * 2));
+                                ctx.strokeRect(x0 - padding, y0 - padding, (x1 - x0) + (padding * 2), (y1 - y0) + (padding * 2));
+                                
+                                // Có thể nhảy bước để tối ưu nếu tên xuất hiện 1 lần trên dòng
+                                i += searchLength - 1; 
+                            }
+                        }
+                    });
+                } else {
+                    // CÁCH 2: TÌM TỪ RỜI RẠC (QUÉT TỪNG TỪ ĐƠN LẺ)
+                    // Ví dụ: Nhập "Nguyen Van A", từ nào chứa "Nguyen", "Van", hoặc "A" đều được highlight độc lập
+                    const searchWordsArray = normalizedSearch.split(" ").filter(w => w.length > 0);
 
-                // Kết thúc quá trình xử lý
+                    words.forEach(word => {
+                        const normalizedWord = removeVietnameseTones(word.text);
+                        if (normalizedWord) {
+                            // Kiểm tra xem từ hiện tại trên hình có khớp với bất kỳ từ nào trong mảng tìm kiếm hay không
+                            const matchesAny = searchWordsArray.some(searchWord => normalizedWord.includes(searchWord) || searchWord.includes(normalizedWord));
+                            
+                            if (matchesAny) {
+                                isFound = true;
+                                const { x0, y0, x1, y1 } = word.bbox;
+                                ctx.fillRect(x0 - padding, y0 - padding, (x1 - x0) + (padding * 2), (y1 - y0) + (padding * 2));
+                                ctx.strokeRect(x0 - padding, y0 - padding, (x1 - x0) + (padding * 2), (y1 - y0) + (padding * 2));
+                            }
+                        }
+                    });
+                }
+
+                // KẾT THÚC VÀ ĐƯA RA KẾT QUẢ
                 progressContainer.style.display = "none";
                 resultContainer.style.display = "flex";
                 searchBtn.disabled = false;
 
                 if (isFound) {
-                    resultTitle.innerText = "✓ Đã tìm thấy vị trí tên của bạn!";
+                    resultTitle.innerText = "✓ Đã tìm thấy vị trí phù hợp với tên của bạn!";
                     resultTitle.style.color = "#4caf50";
-                    // Tự động cuộn mượt xuống vùng hiển thị kết quả
                     resultContainer.scrollIntoView({ behavior: 'smooth' });
                 } else {
-                    resultTitle.innerText = "✕ Không tìm thấy tên khớp trên hình. Hãy thử chụp gần lại hơn nhé!";
+                    resultTitle.innerText = "✕ Không tìm thấy kết quả trùng khớp. Hãy thử đổi bộ lọc hoặc chụp gần hơn!";
                     resultTitle.style.color = "#f44336";
                 }
             };
 
         } catch (error) {
             console.error(error);
-            alert('Có lỗi xảy ra trong quá trình xử lý ảnh local: ' + error.message);
+            alert('Lỗi xử lý hệ thống: ' + error.message);
             progressContainer.style.display = "none";
             searchBtn.disabled = false;
         }
     });
 
-    // Hàm cập nhật trạng thái Progress bar trực quan
     function updateProgress(fraction, text) {
         const percentage = Math.round(fraction * 100);
         progressBar.style.width = percentage + '%';
         progressText.innerText = `${text} (${percentage}%)`;
     }
 
-    // Hàm tối ưu & nén ảnh bằng HTML5 Canvas tránh tràn RAM/đứng máy điện thoại
     function resizeAndOptimizeImage(file, maxDimension) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -431,8 +497,6 @@
                 img.onload = function() {
                     let width = img.width;
                     let height = img.height;
-
-                    // Tính toán tỷ lệ co giãn để giữ nguyên aspect ratio
                     if (width > maxDimension || height > maxDimension) {
                         if (width > height) {
                             height = Math.round((height * maxDimension) / width);
@@ -442,20 +506,15 @@
                             height = maxDimension;
                         }
                     }
-
-                    // Tạo canvas ẩn để thực hiện render nén ảnh
                     const canvas = document.createElement('canvas');
                     canvas.width = width;
                     canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
-
-                    // Xuất ngược ra định dạng Blob JPEG với mức nén chất lượng 85% vừa đủ nét để OCR đọc tốt
                     canvas.toBlob(function(blob) {
                         resolve(blob);
                     }, 'image/jpeg', 0.85);
                 };
-                img.onerror = err => reject(err);
             };
             reader.onerror = err => reject(err);
         });
